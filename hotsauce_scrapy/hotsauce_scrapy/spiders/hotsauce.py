@@ -15,7 +15,24 @@ class SpiderHotSauce(scrapy.Spider):
     }
 
     def parseWrite_AllViews(self, response, **kwargs):
-        pass
+        csvFile = kwargs['csvFile']
+        name= response.xpath('//div[@class="card-body"]/h4/a/text()').getall()
+        price = response.xpath('//div[@class="price-section price-section--withoutTax "]/span/text()').getall()
+        link = response.xpath('//div[@class="card-body"]/h4/a/@href').getall()
+        branch = response.xpath('//div[@class="brand-rating"]//p[@class="card-text" and @data-test-info-type="brandName"]/text()').getall()
+        priceWithoutax = list(filter(lambda x: (price.index(x)%2==0),price))
+        priceNormal = list(filter(lambda x: (price.index(x)%2!=0),price))
+
+        header = ['Name', 'Price', 'Price witout Tax', 'Brand', 'Link']
+        
+        row= [[name[i], priceNormal[i], priceWithoutax[i],branch[i],link[i]] for i in range(0,len(name)-1) ]
+        
+        writer = csv.writer(csvFile)
+        writer.writerow(header)
+        writer.writerows(row)
+    
+        
+
 
     def parseAllViews(self, response, **kwargs):
         ruta = kwargs[ 'rutaAllView']
@@ -24,7 +41,7 @@ class SpiderHotSauce(scrapy.Spider):
         count = 0
 
         if allViews_links == []:
-            csvFile=open(f'{ruta}/{"sjnsdkjcsd"}.csv', 'w')
+            csvFile= open(f'{ruta}/{"sjnsdkjcsd"}.csv', 'w')
         else:
             for link in allViews_links:
                 csvFile=open(f'{ruta}/{allViews_names[count]}.csv', 'w')
