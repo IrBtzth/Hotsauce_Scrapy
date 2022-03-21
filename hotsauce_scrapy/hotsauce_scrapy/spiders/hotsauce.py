@@ -1,6 +1,8 @@
 from pathlib import Path, PurePath
 import scrapy
 import csv
+import panda as pd
+
 
 #nextbuttom = response.xpath('//div[@class="pagination"]/ul[@class="pagination-list"]/li[@class="pagination-item pagination-item--next"]/a[@class="pagination-link"]/@href').extract_first()
 class SpiderHotSauce(scrapy.Spider):
@@ -15,6 +17,8 @@ class SpiderHotSauce(scrapy.Spider):
 
     def parseWrite_AllViews(self, response, **kwargs):
         csvFile = kwargs['csvFile']
+        file = kwargs['file']
+        row = pd.DataFrame()
         
         name= response.xpath('//div[@class="card-body"]/h4/a/text()').getall()
         price = response.xpath('//div[@class="price-section price-section--withoutTax "]/span/text()').getall()
@@ -23,26 +27,32 @@ class SpiderHotSauce(scrapy.Spider):
         priceWithoutax = list(filter(lambda x: (price.index(x)%2!=0),price))
         priceNormal = list(filter(lambda x: (price.index(x)%2==0),price))
 
-
+        error = response.xpath('//div[@class="price-section price-section--withoutTax "]/span[@data-product-rrp-without-tax]/text()').getall() == []
         try:
-            row= [[name[i], priceNormal[i], priceWithoutax[i],branch[i],link[i]] for i in range(0,len(name)-1) ]
-            writer = csv.writer(csvFile)
-            writer.writerows(row)
+            if error:
+                price = response.xpath('//div[@class="price-section price-section--withoutTax "]/span[@data-product-rrp-without-tax]/text()')
+                header = ['Name', 'Price', 'Brand', 'Link']
+                writer = csv.writer(csvFile)
+                writer.writerow(header)
+                row= [[name[i], price[i],branch[i],link[i]] for i in range(0,len(name)-1) ]
+                writer.writerows(row)
+            else:
+                row= [[name[i], priceNormal[i], priceWithoutax[i],branch[i],link[i]] for i in range(0,len(name)-1) ]
+                header = ['Name', 'Price', 'Price witout Tax', 'Brand', 'Link']
+                writer = csv.writer(csvFile)
+                writer.writerow(header)
+                writer.writerows(row)
         except:
-            print("SE ESCONETO")
             
-
-        if response.xpath('//div[@class="price-section price-section--withoutTax "]/span[@data-product-rrp-without-tax]/text()').getall() == []:
-            price = response.xpath('//div[@class="price-section price-section--withoutTax "]/span[@data-product-rrp-without-tax]/text()')
-            row= [[name[i], price[i],branch[i],link[i]] for i in range(0,len(name)-1) ]
-        
+            file.write("link" + str(response) +"\n")
+            print("SE ESCONETO")
        
         
         next_page_button_link = response.xpath('//div[@class="pagination"]/ul[@class="pagination-list"]/li[@class="pagination-item pagination-item--next"]/a[@class="pagination-link"]/@href').extract_first()
 
         if next_page_button_link is not None:
         
-            yield response.follow(next_page_button_link, callback = self.parseWrite_AllViews, cb_kwargs={'csvFile': csvFile})
+            yield response.follow(next_page_button_link, callback = self.parseWrite_AllViews, cb_kwargs={'csvFile': csvFile,'file':file})
                  
         
 
@@ -54,17 +64,15 @@ class SpiderHotSauce(scrapy.Spider):
 
         
         count = 0
-        
+        file = open("/home/betza/Python/Hotsauce_Scrapy/hotsauce_scrapy/filename2.txt", "w")
         if allViews_links == []:
             csvFile= open(f'{ruta}/{"sjnsdkjcsd"}.csv', 'w')
         else:
             for link in allViews_links:
                 allViews_names[count] =allViews_names[count].replace("/", "-")
                 csvFile =  open(f'{ruta}/{allViews_names[count]}.csv', 'w') 
-                header = ['Name', 'Price', 'Price witout Tax', 'Brand', 'Link']
-                writer = csv.writer(csvFile)
-                writer.writerow(header)
-                yield response.follow(link, callback = self.parseWrite_AllViews, cb_kwargs={'csvFile': csvFile})
+                
+                yield response.follow(link, callback = self.parseWrite_AllViews, cb_kwargs={'csvFile': csvFile, 'file':file})
                 count+=1
 
 
